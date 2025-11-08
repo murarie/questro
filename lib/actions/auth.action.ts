@@ -35,7 +35,7 @@ export async function signUp(params: SignUpParams) {
       return {
         success: false,
         message: "User already exists. Please sign in.",
-      };  
+      };
 
     // save user to db
     await db.collection("users").doc(uid).set({
