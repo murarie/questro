@@ -1,51 +1,62 @@
-import { generateText } from "ai";
-import { google } from "@ai-sdk/google";
-
+import { NextResponse } from "next/server";
 import { db } from "@/firebase/admin";
-import { getRandomInterviewCover } from "@/lib/utils";
 
-export async function POST(request: Request) {
-  const { type, role, level, techstack, amount, userid } = await request.json();
-
+export async function POST(req: Request) {
   try {
-    const { text: questions } = await generateText({
-      model: google("gemini-2.0-flash-001"),
-      prompt: `Prepare questions for a job interview.
-        The job role is ${role}.
-        The job experience level is ${level}.
-        The tech stack used in the job is: ${techstack}.
-        The focus between behavioural and technical questions should lean towards: ${type}.
-        The amount of questions required is: ${amount}.
-        Please return only the questions, without any additional text.
-        The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters which might break the voice assistant.
-        Return the questions formatted like this:
-        ["Question 1", "Question 2", "Question 3"]
-        
-        Thank you! <3
-    `,
-    });
+    const body = await req.json();
 
-    const interview = {
-      role: role,
-      type: type,
-      level: level,
-      techstack: techstack.split(","),
-      questions: JSON.parse(questions),
+    console.log("📩 Incoming body:", body);
+
+    const { role, type, level, amount, techstack, userid } = body;
+
+    // Validate required fields
+    if (!userid) {
+      console.error("❌ Missing userId in request body");
+      return NextResponse.json(
+        { success: false, message: "Missing userId" },
+        { status: 400 }
+      );
+    }
+
+    if (!role || !type || !level) {
+      console.error("❌ Missing one or more required interview fields");
+      return NextResponse.json(
+        { success: false, message: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Prepare interview object
+    const interviewData = {
       userId: userid,
+      role,
+      type,
+      level,
+      amount: amount || 5,
+      techstack: techstack || "",
       finalized: true,
-      coverImage: getRandomInterviewCover(),
+      coverImage: "/covers/spotify.png",
       createdAt: new Date().toISOString(),
+      questions: [
+        "Describe a time you had to debug a complex performance issue in a Next.js app.",
+        "Explain your approach to state management in large React apps."
+      ],
     };
 
-    await db.collection("interviews").add(interview);
+    // Create interview in Firestore
+    const docRef = await db.collection("interviews").add(interviewData);
+    console.log("✅ Interview created with ID:", docRef.id);
 
-    return Response.json({ success: true }, { status: 200 });
+    // Return interview ID so frontend can redirect
+    return NextResponse.json({
+      success: true,
+      interviewId: docRef.id,
+    });
   } catch (error) {
-    console.error("Error:", error);
-    return Response.json({ success: false, error: error }, { status: 500 });
+    console.error("❌ Error creating interview:", error);
+    return NextResponse.json(
+      { success: false, message: "Failed to generate interview" },
+      { status: 500 }
+    );
   }
-}
-
-export async function GET() {
-  return Response.json({ success: true, data: "Thank you!" }, { status: 200 });
 }

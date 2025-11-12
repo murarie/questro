@@ -16,14 +16,22 @@ const normalizeTechName = (tech: string) => {
 const checkIconExists = async (url: string) => {
   try {
     const response = await fetch(url, { method: "HEAD" });
-    return response.ok; // Returns true if the icon exists
+    return response.ok;
   } catch {
     return false;
   }
 };
 
-export const getTechLogos = async (techArray: string[]) => {
-  const logoURLs = techArray.map((tech) => {
+// ✅ FIXED VERSION — handles both string & array
+export const getTechLogos = async (techArray: string[] | string) => {
+  // Convert to array if needed
+  const techList = Array.isArray(techArray)
+    ? techArray
+    : typeof techArray === "string"
+    ? techArray.split(",").map((t) => t.trim())
+    : [];
+
+  const logoURLs = techList.map((tech) => {
     const normalized = normalizeTechName(tech);
     return {
       tech,

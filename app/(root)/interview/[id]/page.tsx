@@ -11,14 +11,35 @@ import {
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import DisplayTechIcons from "@/components/DisplayTechIcons";
 
+interface RouteParams {
+  params: {
+    id: string;
+  };
+}
+
 const InterviewDetails = async ({ params }: RouteParams) => {
-  const { id } = await params;
+  // ✅ FIXED: remove "await" — params is not a Promise
+  const { id } = params;
 
+  console.log("📘 Interview ID received:", id);
+
+  // ✅ Get current user
   const user = await getCurrentUser();
+  if (!user) {
+    console.error("❌ No user found — redirecting");
+    redirect("/sign-in");
+  }
 
+  // ✅ Fetch interview data from Firestore
   const interview = await getInterviewById(id);
-  if (!interview) redirect("/");
+  console.log("🧠 Firestore returned interview:", interview);
 
+  if (!interview) {
+    console.error("⚠️ No interview found with this ID, redirecting to home");
+    redirect("/");
+  }
+
+  // ✅ Fetch feedback if available
   const feedback = await getFeedbackByInterviewId({
     interviewId: id,
     userId: user?.id!,
@@ -39,11 +60,20 @@ const InterviewDetails = async ({ params }: RouteParams) => {
             <h3 className="capitalize">{interview.role} Interview</h3>
           </div>
 
-          <DisplayTechIcons techStack={interview.techstack} />
+          {/* ✅ Safe check for techstack being a string */}
+          <DisplayTechIcons
+            techStack={
+              Array.isArray(interview.techstack)
+                ? interview.techstack
+                : interview.techstack
+                ? interview.techstack.split(",").map((t: string) => t.trim())
+                : []
+            }
+          />
         </div>
 
-        <p className="bg-dark-200 px-4 py-2 rounded-lg h-fit">
-          {interview.type}
+        <p className="bg-dark-200 px-4 py-2 rounded-lg h-fit capitalize">
+          {interview.type || "technical"}
         </p>
       </div>
 
@@ -52,7 +82,7 @@ const InterviewDetails = async ({ params }: RouteParams) => {
         userId={user?.id}
         interviewId={id}
         type="interview"
-        questions={interview.questions}
+        questions={interview.questions || []}
         feedbackId={feedback?.id}
       />
     </>
