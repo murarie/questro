@@ -1,5 +1,3 @@
-import React from 'react'
-
 import dayjs from "dayjs";
 import Link from "next/link";
 import Image from "next/image";
@@ -10,20 +8,30 @@ import DisplayTechIcons from "./DisplayTechIcons";
 import { cn, getRandomInterviewCover } from "@/lib/utils";
 import { getFeedbackByInterviewId } from "@/lib/actions/general.action";
 
-
-  const InterviewCard = async ({ id, userId, role, type, techstack, createdAt }: InterviewCardProps) => {
-    const feedback = userId && id ?
-        await getFeedbackByInterviewId({ interviewId: id, userId })
-        : null;
+const InterviewCard = async ({
+  interviewId,
+  userId,
+  role,
+  type,
+  techstack,
+  createdAt,
+}: InterviewCardProps) => {
+  const feedback =
+    userId && interviewId
+      ? await getFeedbackByInterviewId({
+          interviewId,
+          userId,
+        })
+      : null;
 
   const normalizedType = /mix/gi.test(type) ? "Mixed" : type;
 
-  // const badgeColor =
-  //   {
-  //     Behavioral: "bg-light-400",
-  //     Mixed: "bg-light-600",
-  //     Technical: "bg-light-800",
-  //   }[normalizedType] || "bg-light-600";
+  const badgeColor =
+    {
+      Behavioral: "bg-light-400",
+      Mixed: "bg-light-600",
+      Technical: "bg-light-800",
+    }[normalizedType] || "bg-light-600";
 
   const formattedDate = dayjs(
     feedback?.createdAt || createdAt || Date.now()
@@ -35,14 +43,22 @@ import { getFeedbackByInterviewId } from "@/lib/actions/general.action";
         <div>
           {/* Type Badge */}
           <div
-            className="absolute top-0 right-0 w-fit px-4 py-2 rounded-bl-lg bg-lighten-600">
-              //badgeColor
-            
+            className={cn(
+              "absolute top-0 right-0 w-fit px-4 py-2 rounded-bl-lg",
+              badgeColor
+            )}
+          >
             <p className="badge-text ">{normalizedType}</p>
           </div>
 
           {/* Cover Image */}
-          <Image src={getRandomInterviewCover()} alt="cover-image" width={90} height={90} className="rounded-full object-fit size-[90px]" />
+          <Image
+            src={getRandomInterviewCover()}
+            alt="cover-image"
+            width={90}
+            height={90}
+            className="rounded-full object-fit size-[90px]"
+          />
 
           {/* Interview Role */}
           <h3 className="mt-5 capitalize">{role} Interview</h3>
@@ -79,8 +95,8 @@ import { getFeedbackByInterviewId } from "@/lib/actions/general.action";
             <Link
               href={
                 feedback
-                  ? `/interview/${id}/feedback`
-                  : `/interview/${id}`
+                  ? `/interview/${interviewId}/feedback`
+                  : `/interview/${interviewId}`
               }
             >
               {feedback ? "Check Feedback" : "View Interview"}
@@ -92,4 +108,4 @@ import { getFeedbackByInterviewId } from "@/lib/actions/general.action";
   );
 };
 
-export default InterviewCard;
+export default InterviewCard; 
