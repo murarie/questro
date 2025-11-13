@@ -9,13 +9,15 @@ import { cn, getRandomInterviewCover } from "@/lib/utils";
 import { getFeedbackByInterviewId } from "@/lib/actions/general.action";
 
 const InterviewCard = async ({
-  interviewId,
+  id,
   userId,
   role,
   type,
   techstack,
   createdAt,
 }: InterviewCardProps) => {
+  const interviewId = id; // Use id as interviewId
+  
   const feedback =
     userId && interviewId
       ? await getFeedbackByInterviewId({

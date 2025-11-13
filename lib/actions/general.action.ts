@@ -12,6 +12,18 @@ export async function createFeedback(params: CreateFeedbackParams) {
   const { interviewId, userId, transcript, feedbackId } = params;
 
   try {
+    console.log("🎯 Creating feedback with params:", {
+      interviewId,
+      userId,
+      transcriptLength: transcript?.length || 0,
+      feedbackId,
+    });
+
+    if (!transcript || transcript.length === 0) {
+      console.error("❌ No transcript provided to createFeedback");
+      return { success: false, error: "No transcript provided" };
+    }
+
     const formattedTranscript = transcript
       .map(
         (sentence: { role: string; content: string }) =>
@@ -19,28 +31,36 @@ export async function createFeedback(params: CreateFeedbackParams) {
       )
       .join("");
 
-    const { object } = await generateObject({
-      model: google("gemini-2.0-flash-001", {
-        structuredOutputs: false,
-      }),
-      schema: feedbackSchema,
-      prompt: `
-        You are an AI interviewer analyzing a mock interview. 
-        Evaluate the candidate based on structured categories.
-        Be detailed and objective — do not be lenient.
-        Transcript:
-        ${formattedTranscript}
+    console.log("📝 Formatted transcript:", formattedTranscript.substring(0, 200) + "...");
+    console.log("🤖 Calling AI to generate feedback...");
 
-        Score the candidate from 0 to 100 in:
-        - Communication Skills
-        - Technical Knowledge
-        - Problem-Solving
-        - Cultural & Role Fit
-        - Confidence & Clarity
-      `,
+    const { object } = await generateObject({
+      model: google("gemini-2.0-flash-exp"),
+      schema: feedbackSchema,
+      prompt: `You are an AI interviewer analyzing a mock interview. 
+Evaluate the candidate based on the following transcript and provide structured feedback.
+
+TRANSCRIPT:
+${formattedTranscript}
+
+REQUIREMENTS:
+1. Provide an overall totalScore from 0-100
+2. Score the candidate in EXACTLY these 5 categories (0-100 each):
+   - Communication Skills: Clarity, articulation, and listening skills
+   - Technical Knowledge: Depth and accuracy of technical responses
+   - Problem Solving: Analytical thinking and approach to challenges
+   - Cultural Fit: Alignment with professional values and teamwork
+   - Confidence and Clarity: Self-assurance and clear expression
+3. List 3-5 key strengths
+4. List 3-5 areas for improvement
+5. Provide a comprehensive final assessment paragraph
+
+Be objective and constructive in your evaluation.`,
       system:
-        "You are a professional interviewer analyzing a mock interview. Be thorough and honest.",
+        "You are a professional technical interviewer providing detailed, honest feedback on mock interviews.",
     });
+
+    console.log("✨ AI generated feedback with total score:", object.totalScore);
 
     const feedback = {
       interviewId,
@@ -57,13 +77,14 @@ export async function createFeedback(params: CreateFeedbackParams) {
       ? db.collection("feedback").doc(feedbackId)
       : db.collection("feedback").doc();
 
+    console.log("💾 Saving feedback to Firestore with ID:", feedbackRef.id);
     await feedbackRef.set(feedback);
 
-    console.log("✅ Feedback saved successfully:", feedbackRef.id);
+    console.log("✅ Feedback saved successfully to Firestore!");
     return { success: true, feedbackId: feedbackRef.id };
   } catch (error) {
     console.error("❌ Error saving feedback:", error);
-    return { success: false };
+    return { success: false, error: String(error) };
   }
 }
 

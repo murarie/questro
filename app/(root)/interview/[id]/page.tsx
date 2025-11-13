@@ -12,14 +12,14 @@ import { getCurrentUser } from "@/lib/actions/auth.action";
 import DisplayTechIcons from "@/components/DisplayTechIcons";
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 const InterviewDetails = async ({ params }: RouteParams) => {
-  // ✅ FIXED: remove "await" — params is not a Promise
-  const { id } = params;
+  // ✅ FIXED: await params — params is a Promise in Next.js 15+
+  const { id } = await params;
 
   console.log("📘 Interview ID received:", id);
 
@@ -45,6 +45,13 @@ const InterviewDetails = async ({ params }: RouteParams) => {
     userId: user?.id!,
   });
 
+  // ✅ Normalize techstack to always be an array
+  const techStackArray: string[] = Array.isArray(interview.techstack)
+    ? interview.techstack
+    : typeof interview.techstack === "string"
+    ? (interview.techstack as string).split(",").map((t: string) => t.trim())
+    : [];
+
   return (
     <>
       <div className="flex flex-row gap-4 justify-between">
@@ -55,21 +62,12 @@ const InterviewDetails = async ({ params }: RouteParams) => {
               alt="cover-image"
               width={40}
               height={40}
-              className="rounded-full object-cover size-[40px]"
+              className="rounded-full object-cover size-10"
             />
             <h3 className="capitalize">{interview.role} Interview</h3>
           </div>
 
-          {/* ✅ Safe check for techstack being a string */}
-          <DisplayTechIcons
-            techStack={
-              Array.isArray(interview.techstack)
-                ? interview.techstack
-                : interview.techstack
-                ? interview.techstack.split(",").map((t: string) => t.trim())
-                : []
-            }
-          />
+          <DisplayTechIcons techStack={techStackArray} />
         </div>
 
         <p className="bg-dark-200 px-4 py-2 rounded-lg h-fit capitalize">

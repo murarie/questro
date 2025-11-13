@@ -45,9 +45,15 @@ const Agent = ({
     };
 
     const onMessage = (message: Message) => {
+      console.log("📨 VAPI Message received:", message);
       if (message.type === "transcript" && message.transcriptType === "final") {
         const newMessage = { role: message.role, content: message.transcript };
-        setMessages((prev) => [...prev, newMessage]);
+        console.log("💬 Adding message to transcript:", newMessage);
+        setMessages((prev) => {
+          const updated = [...prev, newMessage];
+          console.log("📚 Total messages now:", updated.length);
+          return updated;
+        });
       }
     };
 
@@ -88,34 +94,73 @@ const Agent = ({
     }
 
     const handleGenerateFeedback = async (messages: SavedMessage[]) => {
-      console.log("handleGenerateFeedback");
+      console.log("🔄 Starting feedback generation...");
+      console.log("📝 Messages array:", messages);
+      console.log("📋 Interview ID:", interviewId);
+      console.log("👤 User ID:", userId);
 
-      const res = await fetch("/api/feedback", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    interviewId: interviewId!,
-    userId: userId!,
-    transcript: messages,
-    feedbackId,
-  }),
-});
+      if (!interviewId || !userId) {
+        console.error("❌ Missing interviewId or userId");
+        alert("Error: Missing interview or user information");
+        router.push("/");
+        return;
+      }
 
-const { success, feedbackId: id } = await res.json();
+      if (messages.length === 0) {
+        console.error("❌ No messages to generate feedback from");
+        alert("No conversation recorded. Please have a conversation with the AI before ending the call.");
+        // Don't redirect, allow user to try again
+        setCallStatus(CallStatus.INACTIVE);
+        return;
+      }
 
+      try {
+        console.log("📤 Sending feedback request to API...");
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            interviewId: interviewId!,
+            userId: userId!,
+            transcript: messages,
+            feedbackId,
+          }),
+        });
 
-      if (success && id) {
-        router.push(`/interview/${interviewId}/feedback`);
-      } else {
-        console.log("Error saving feedback");
+        if (!res.ok) {
+          const errorText = await res.text();
+          console.error("❌ API returned error status:", res.status, errorText);
+          throw new Error(`API error: ${res.status} - ${errorText}`);
+        }
+
+        const data = await res.json();
+        console.log("📊 Feedback API response:", data);
+
+        if (data.success && data.feedbackId) {
+          console.log("✅ Feedback saved successfully, redirecting...");
+          // Add a small delay to ensure database write is complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          router.push(`/interview/${interviewId}/feedback`);
+          router.refresh(); // Force refresh to update cache
+        } else {
+          console.error("❌ Feedback save failed:", data);
+          const errorMessage = data.error || "Unknown error occurred";
+          alert(`Failed to save feedback: ${errorMessage}`);
+          router.push("/");
+        }
+      } catch (error) {
+        console.error("❌ Exception during feedback generation:", error);
+        alert(`An error occurred while saving feedback: ${error instanceof Error ? error.message : 'Unknown error'}`);
         router.push("/");
       }
     };
 
     if (callStatus === CallStatus.FINISHED) {
       if (type === "generate") {
+        console.log("🏠 Interview generation complete, returning home");
         router.push("/");
       } else {
+        console.log("🎯 Interview complete, generating feedback...");
         handleGenerateFeedback(messages);
       }
     }
